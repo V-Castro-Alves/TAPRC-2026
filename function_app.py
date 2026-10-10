@@ -131,7 +131,7 @@ def extract_chamado_sla(myTimer: func.TimerRequest) -> None:
         
         # Imprimir os dados da tabela usando logging.info
         for row in rows:
-            logging.info(row)2
+            logging.info(row)
 
 @app.timer_trigger(schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False,
               use_monitor=False) 
