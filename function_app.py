@@ -29,7 +29,7 @@ def extract_analista(myTimer: func.TimerRequest) -> None:
     # Criar conexão com o banco
     with pyodbc.connect(conn) as connection:
         cursor = connection.cursor()
-        # Fazer um select * na tabela
+        # Fazer um select * na tabela !
         cursor.execute("SELECT * FROM itsm.analista;")
         rows = cursor.fetchall()
         
@@ -131,7 +131,7 @@ def extract_chamado_sla(myTimer: func.TimerRequest) -> None:
         
         # Imprimir os dados da tabela usando logging.info
         for row in rows:
-            logging.info(row)
+            logging.info(row)2
 
 @app.timer_trigger(schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False,
               use_monitor=False) 
