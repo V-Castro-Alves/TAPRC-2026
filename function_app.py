@@ -6,6 +6,8 @@ import pyodbc
 
 logger = logging.getLogger(__name__)
 
+app = func.FunctionApp()
+
 @app.timer_trigger(schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False,
               use_monitor=False) 
 def extract_analista(myTimer: func.TimerRequest) -> None:
