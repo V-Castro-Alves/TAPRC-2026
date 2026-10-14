@@ -269,7 +269,7 @@ def extract_fila(myTimer: func.TimerRequest) -> None:
         "Connection Timeout=30;"
     )
 
-    # Criar conexão com o banco
+    # Criar conexão com o banco para puxar os dados da tabela itsm.fila
     with pyodbc.connect(conn) as connection:
         cursor = connection.cursor()
         # Fazer um select * na tabela
@@ -303,7 +303,7 @@ def extract_sla(myTimer: func.TimerRequest) -> None:
         "Connection Timeout=30;"
     )
 
-    # Criar conexão com o banco
+    # Criar conexão com o banco para puxar os dados da tabela itsm.sla
     with pyodbc.connect(conn) as connection:
         cursor = connection.cursor()
         # Fazer um select * na tabela
