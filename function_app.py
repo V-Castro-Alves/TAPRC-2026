@@ -12,7 +12,7 @@ app = func.FunctionApp()
 @app.timer_trigger(
     schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
-def extract_analista(myTimer: func.TimerRequest) -> None:
+def extract_analistas(myTimer: func.TimerRequest) -> None:
     # importar as variaveis de ambeinte
     host_sql = os.getenv("HOST")
     database_sql = os.getenv("DATABASE")
