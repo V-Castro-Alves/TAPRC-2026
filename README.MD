@@ -24,8 +24,9 @@ Configure estas Application Settings na Function App:
 - `HOST`, `DATABASE`, `USER` e `PASSWORD`: permanecem as configurações já
   existentes para o banco de origem.
 
-A conexão usa ODBC Driver 18, `Encrypt=yes`, `TrustServerCertificate=no`,
-`Connection Timeout=30` e `Authentication=ActiveDirectoryPassword`.
+A conexão usa ODBC Driver 18, `Encrypt=yes`, `TrustServerCertificate=no` e
+`Connection Timeout=30`. Como o target usa usuário SQL tradicional, a
+autenticação é feita por `UID` e `PWD`, sem `Authentication=ActiveDirectoryPassword`.
 
 As credenciais devem ser substituídas somente nas configurações da Function App,
 nunca neste repositório. Para desenvolvimento local, use `local.settings.json`

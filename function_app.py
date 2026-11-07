@@ -25,7 +25,6 @@ _SOURCE_TABLES = {
 
 def _get_sql_connection(
     setting_names: tuple[str, str, str, str],
-    authentication: str | None = None,
 ) -> pyodbc.Connection:
     host_name, database_name, user_name, password_name = setting_names
     settings = {
@@ -48,8 +47,6 @@ def _get_sql_connection(
         "TrustServerCertificate=no;"
         "Connection Timeout=30;"
     )
-    if authentication:
-        connection_string += f"Authentication={authentication};"
     return pyodbc.connect(connection_string)
 
 
@@ -92,8 +89,7 @@ def _upsert_target_table(
     )
 
     with _get_sql_connection(
-        ("TARGET_HOST", "TARGET_DATABASE", "TARGET_USER", "TARGET_PASSWORD"),
-        authentication="ActiveDirectoryPassword",
+        ("TARGET_HOST", "TARGET_DATABASE", "TARGET_USER", "TARGET_PASSWORD")
     ) as connection:
         cursor = connection.cursor()
         cursor.execute(f"SET IDENTITY_INSERT itsm.{quoted_table} ON;")
