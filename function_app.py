@@ -25,6 +25,7 @@ _SOURCE_TABLES = {
 
 def _get_sql_connection(
     setting_names: tuple[str, str, str, str],
+    authentication: str | None = None,
 ) -> pyodbc.Connection:
     host_name, database_name, user_name, password_name = setting_names
     settings = {
@@ -37,7 +38,7 @@ def _get_sql_connection(
     if missing_settings:
         raise RuntimeError("Configurações SQL ausentes: " + ", ".join(missing_settings))
 
-    return pyodbc.connect(
+    connection_string = (
         "DRIVER={ODBC Driver 18 for SQL Server};"
         f"SERVER={settings['host']};"
         f"DATABASE={settings['database']};"
@@ -46,8 +47,10 @@ def _get_sql_connection(
         "Encrypt=yes;"
         "TrustServerCertificate=no;"
         "Connection Timeout=30;"
-        "Authentication=ActiveDirectoryPassword;"
     )
+    if authentication:
+        connection_string += f"Authentication={authentication};"
+    return pyodbc.connect(connection_string)
 
 
 def _quote_identifier(identifier: str) -> str:
@@ -89,7 +92,8 @@ def _upsert_target_table(
     )
 
     with _get_sql_connection(
-        ("TARGET_HOST", "TARGET_DATABASE", "TARGET_USER", "TARGET_PASSWORD")
+        ("TARGET_HOST", "TARGET_DATABASE", "TARGET_USER", "TARGET_PASSWORD"),
+        authentication="ActiveDirectoryPassword",
     ) as connection:
         cursor = connection.cursor()
         cursor.execute(f"SET IDENTITY_INSERT itsm.{quoted_table} ON;")
