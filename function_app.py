@@ -1,30 +1,43 @@
-import csv
-import io
 import logging
 import os
-from datetime import datetime
-from zoneinfo import ZoneInfo
+import re
 
 import azure.functions as func
 import pyodbc
-from azure.storage.filedatalake import DataLakeServiceClient
 
 app = func.FunctionApp()
 logger = logging.getLogger(__name__)
 
+_TABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_SOURCE_TABLES = {
+    "analista",
+    "categoria",
+    "chamado",
+    "chamado_sla",
+    "chamado_status_historico",
+    "cliente_organizacao",
+    "csat_avaliacao",
+    "fila",
+    "sla",
+    "solicitante",
+}
 
-def _get_sql_connection() -> pyodbc.Connection:
+
+def _get_sql_connection(
+    setting_names: tuple[str, str, str, str],
+) -> pyodbc.Connection:
+    host_name, database_name, user_name, password_name = setting_names
     settings = {
-        "host": os.getenv("HOST"),
-        "database": os.getenv("DATABASE"),
-        "user": os.getenv("USER"),
-        "password": os.getenv("PASSWORD"),
+        "host": os.getenv(host_name),
+        "database": os.getenv(database_name),
+        "user": os.getenv(user_name),
+        "password": os.getenv(password_name),
     }
     missing_settings = [name for name, value in settings.items() if not value]
     if missing_settings:
         raise RuntimeError("Configurações SQL ausentes: " + ", ".join(missing_settings))
 
-    connection_string = (
+    return pyodbc.connect(
         "DRIVER={ODBC Driver 18 for SQL Server};"
         f"SERVER={settings['host']};"
         f"DATABASE={settings['database']};"
@@ -33,51 +46,85 @@ def _get_sql_connection() -> pyodbc.Connection:
         "Encrypt=yes;"
         "TrustServerCertificate=no;"
         "Connection Timeout=30;"
+        "Authentication=ActiveDirectoryPassword;"
     )
-    return pyodbc.connect(connection_string)
 
 
-def _write_bronze_csv(
+def _quote_identifier(identifier: str) -> str:
+    if not _TABLE_NAME_PATTERN.fullmatch(identifier):
+        raise ValueError(f"Identificador SQL inválido: {identifier}")
+    return f"[{identifier}]"
+
+
+def _upsert_target_table(
     table_name: str, columns: list[str], rows: list[tuple[object, ...]]
-) -> str:
-    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    file_path = (
-        f"{table_name}/{now:%Y}/{now:%m}/{now:%d}/{table_name}_{now:%Y%m%d_%H%M%S}.csv"
+) -> int:
+    if not rows:
+        logger.info("Tabela itsm.%s sem registros para carregar", table_name)
+        return 0
+
+    quoted_table = _quote_identifier(table_name)
+    quoted_columns = ", ".join(_quote_identifier(column) for column in columns)
+    source_columns = ", ".join(_quote_identifier(column) for column in columns)
+    primary_key = _quote_identifier(columns[0])
+    update_columns = columns[1:]
+    update_clause = ", ".join(
+        f"target.{_quote_identifier(column)} = source.{_quote_identifier(column)}"
+        for column in update_columns
+    )
+    insert_values = ", ".join(
+        f"source.{_quote_identifier(column)}" for column in columns
+    )
+    update_sql = (
+        f"WHEN MATCHED THEN UPDATE SET {update_clause}" if update_clause else ""
+    )
+    merge_sql = (
+        f"MERGE itsm.{quoted_table} AS target "
+        f"USING (VALUES ({', '.join('?' for _ in columns)})) "
+        f"AS source ({source_columns}) "
+        f"ON target.{primary_key} = source.{primary_key} "
+        f"{update_sql} "
+        f"WHEN NOT MATCHED BY TARGET THEN "
+        f"INSERT ({quoted_columns}) VALUES ({insert_values});"
     )
 
-    buffer = io.StringIO()
-    writer = csv.writer(buffer, lineterminator="\n")
-    writer.writerow(columns)
-    writer.writerows(rows)
+    with _get_sql_connection(
+        ("TARGET_HOST", "TARGET_DATABASE", "TARGET_USER", "TARGET_PASSWORD")
+    ) as connection:
+        cursor = connection.cursor()
+        cursor.execute(f"SET IDENTITY_INSERT itsm.{quoted_table} ON;")
+        try:
+            cursor.fast_executemany = True
+            cursor.executemany(merge_sql, rows)
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            cursor.execute(f"SET IDENTITY_INSERT itsm.{quoted_table} OFF;")
+            connection.commit()
 
-    connection_string = os.getenv("DATALAKE_CONNECTION_STRING")
-    if not connection_string:
-        raise RuntimeError("Configuração ausente: DATALAKE_CONNECTION_STRING")
-
-    datalake = DataLakeServiceClient.from_connection_string(connection_string)
-    file_client = datalake.get_file_system_client("bronze").get_file_client(file_path)
-    file_client.upload_data(buffer.getvalue().encode("utf-8"), overwrite=True)
-
-    logger.info(
-        "Arquivo gravado em bronze/%s (%d linhas)",
-        file_path,
-        len(rows),
-    )
-    return file_path
+    logger.info("Tabela itsm.%s carregada (%d linhas)", table_name, len(rows))
+    return len(rows)
 
 
 def _extract_table(table_name: str) -> None:
+    if table_name not in _SOURCE_TABLES:
+        raise ValueError(f"Tabela não autorizada: {table_name}")
+
     logger.info("Iniciando extração de itsm.%s", table_name)
     query = f"SELECT * FROM itsm.[{table_name}];"
 
     try:
-        with _get_sql_connection() as connection:
+        with _get_sql_connection(
+            ("HOST", "DATABASE", "USER", "PASSWORD")
+        ) as connection:
             cursor = connection.cursor()
             cursor.execute(query)
             rows = cursor.fetchall()
             columns = [column[0] for column in cursor.description]
 
-        _write_bronze_csv(table_name, columns, rows)
+        _upsert_target_table(table_name, columns, rows)
         logger.info("Extração de itsm.%s concluída", table_name)
     except Exception:
         logger.exception("Erro ao extrair itsm.%s", table_name)
