@@ -2,7 +2,8 @@ import csv
 import io
 import logging
 import os
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import azure.functions as func
 import pyodbc
@@ -39,7 +40,7 @@ def _get_sql_connection() -> pyodbc.Connection:
 def _write_bronze_csv(
     table_name: str, columns: list[str], rows: list[tuple[object, ...]]
 ) -> str:
-    now = datetime.now(UTC)
+    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
     file_path = (
         f"{table_name}/{now:%Y}/{now:%m}/{now:%d}/{table_name}_{now:%Y%m%d_%H%M%S}.csv"
     )
@@ -84,70 +85,70 @@ def _extract_table(table_name: str) -> None:
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_analistas(myTimer: func.TimerRequest) -> None:
     _extract_table("analista")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_categoria(myTimer: func.TimerRequest) -> None:
     _extract_table("categoria")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_chamado(myTimer: func.TimerRequest) -> None:
     _extract_table("chamado")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_chamado_sla(myTimer: func.TimerRequest) -> None:
     _extract_table("chamado_sla")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_chamado_status_historico(myTimer: func.TimerRequest) -> None:
     _extract_table("chamado_status_historico")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_cliente_organizacao(myTimer: func.TimerRequest) -> None:
     _extract_table("cliente_organizacao")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_csat_avaliacao(myTimer: func.TimerRequest) -> None:
     _extract_table("csat_avaliacao")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_fila(myTimer: func.TimerRequest) -> None:
     _extract_table("fila")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_sla(myTimer: func.TimerRequest) -> None:
     _extract_table("sla")
 
 
 @app.timer_trigger(
-    schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
+    schedule="0 0 0 * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False
 )
 def extract_solicitante(myTimer: func.TimerRequest) -> None:
     _extract_table("solicitante")
